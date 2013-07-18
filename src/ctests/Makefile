@@ -4,6 +4,7 @@ PAPILIB = ../libpapi.a
 CC	= gcc
 CC_R	= $(CC) -pthread
 CFLAGS	= -g -O -Wall
+OMPCFLGS= -fopenmp
 
 OMP	= zero_omp omptough
 SMP	= zero_smp
@@ -21,7 +22,7 @@ SERIAL  = inherit hwinfo code2name reset cmpinfo realtime virttime first \
 	all_events derived high-level2 hl_rates describe memory  \
 	zero_flip low-level high-level eventname case1 case2 \
 	calibrate flops second johnmay2 matrix-hl tenth ipc nmi_watchdog \
-	get_event_component disable_component remove_events cycle_ratio
+	get_event_component disable_component remove_events cycle_ratio pernode
 FORKEXEC  = fork fork2 exec exec2 forkexec forkexec2 forkexec3 forkexec4 \
 	fork_overflow exec_overflow child_overflow system_child_overflow \
 	system_overflow burn zero_fork
@@ -36,7 +37,7 @@ P4_TEST	= p4_lst_ins
 ACPI	= acpi 
 EAR	= earprofile
 RANGE	= data_range
-BROKEN	= pernode
+#BROKEN	= pernode
 API = api
 ALL	= $(PTHREADS) $(SERIAL) $(FORKEXEC) $(OVERFLOW) $(PROFILE) $(MPI) $(MPX) $(MPXPTHR) $(OMP) $(SMP) $(SHMEM)\
 	$(SHARED) $(EAR) $(RANGE) $(P4_TEST) $(ACPI) $(ATTACH) $(API)
@@ -288,7 +289,7 @@ byte_profile: byte_profile.c $(UTILOBJS) prof_utils.o $(PAPILIB)
 	$(CC) $(INCLUDE) $(CFLAGS) $(TOPTFLAGS) byte_profile.c prof_utils.o $(UTILOBJS) $(PAPILIB) $(LDFLAGS) -o byte_profile
 
 pernode: pernode.c $(UTILOBJS) $(PAPILIB)
-	$(CC) $(INCLUDE) $(CFLAGS) $(TOPTFLAGS) pernode.c $(LDFLAGS) -o pernode
+	$(CC) $(INCLUDE) $(CFLAGS) $(TOPTFLAGS) pernode.c $(UTILOBJS) $(PAPILIB) $(LDFLAGS) -o pernode
 
 dmem_info: dmem_info.c $(UTILOBJS) $(PAPILIB)
 	$(CC) $(INCLUDE) $(CFLAGS) $(TOPTFLAGS) dmem_info.c $(UTILOBJS) $(PAPILIB) $(LDFLAGS) -o dmem_info

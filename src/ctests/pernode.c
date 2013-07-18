@@ -115,9 +115,6 @@ main(  )
 	printf
 		( "-------------------------------------------------------------------------\n" );
 
-	free( values );
-
-	PAPI_shutdown(  );
-
-	exit( 0 );
+	test_pass( __FILE__, &values, 1 );
+	exit( 1 );
 }
