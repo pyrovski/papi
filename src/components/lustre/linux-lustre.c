@@ -78,11 +78,15 @@ typedef struct LUSTRE_context
 } LUSTRE_context_t;
 
 /* Default path to lustre stats */
+#ifdef FAKE_LUSTRE
+const char proc_base_path[] = "./components/lustre/fake_proc/fs/lustre/";
+#else
 const char proc_base_path[] = "/proc/fs/lustre/";
-//const char proc_base_path[] = "./components/lustre/fake_proc/fs/lustre/";
+#endif
 
-static counter_info *lustre_native_table[LUSTRE_MAX_COUNTERS];
+static counter_info **lustre_native_table = NULL;
 static int num_events = 0;
+static int table_size = 32;
 
 /* mount Lustre fs are kept in a list */
 static lustre_fs *root_lustre_fs = NULL;
@@ -92,6 +96,20 @@ papi_vector_t _lustre_vector;
 /******************************************************************************
  ********  BEGIN FUNCTIONS  USED INTERNALLY SPECIFIC TO THIS COMPONENT ********
  *****************************************************************************/
+static int resize_native_table() {
+	counter_info** new_table;
+	int new_size = table_size*2;
+	new_table = (counter_info**)papi_malloc(sizeof(counter_info*) * new_size);
+	if (NULL==new_table)
+		return PAPI_ENOMEM;
+	if ( lustre_native_table) {
+		memcpy(new_table, lustre_native_table, sizeof(counter_info*) * table_size );
+		papi_free(lustre_native_table);
+	}
+	lustre_native_table = new_table;
+	table_size*=2;
+	return PAPI_OK;
+}
 
 /**
  * add a counter to the list of available counters
@@ -103,6 +121,10 @@ static counter_info *
 addCounter( const char *name, const char *desc, const char *unit )
 {
     counter_info *cntr;
+
+	if ( num_events >= table_size )
+		if (PAPI_OK != resize_native_table())
+			return NULL;
 
     cntr = malloc( sizeof ( counter_info ) );
 
@@ -166,19 +188,31 @@ addLustreFS( const char *name,
 	fclose(fff);
 
 	sprintf( counter_name, "%s_llread", name );
-	fs->read_cntr = addCounter( counter_name, 
+	if (NULL == (fs->read_cntr = addCounter( counter_name, 
 				    "bytes read on this lustre client", 
-				    "bytes" );
+				    "bytes" ))) {
+			free(fs);
+			return PAPI_ENOMEM;
+	}
 
 	sprintf( counter_name, "%s_llwrite", name );
-	fs->write_cntr = addCounter( counter_name, 
+	if ( NULL == (fs->write_cntr = addCounter( counter_name, 
 				     "bytes written on this lustre client",
-				     "bytes" );
+				     "bytes" ))) {
+			free(fs->read_cntr);
+			free(fs);
+			return PAPI_ENOMEM;
+	}
 
 	sprintf( counter_name, "%s_wrong_readahead", name );
-	fs->readahead_cntr = addCounter( counter_name, 
+	if ( NULL == (fs->readahead_cntr = addCounter( counter_name, 
 					 "bytes read but discarded due to readahead",
-					 "bytes" );
+					 "bytes" ))) {
+			free(fs->read_cntr);
+			free(fs->write_cntr);
+			free(fs);
+			return PAPI_ENOMEM;
+	}
 
 	fs->next = NULL;
 
@@ -248,7 +282,7 @@ init_lustre_counters( void  )
 
 	      ptr = strstr(path,"llite/") + 6;
 
-	      while ( *ptr && *ptr != '-' && idx < 100 ) {
+	      while ( *ptr && idx < 100 ) {
 	         fs_name[idx] = *ptr;
 		 ptr++;
 		 idx++;
@@ -397,11 +431,12 @@ detect_lustre()
  */
 
 int
-_lustre_init_component(  )
+_lustre_init_component( int cidx )
 {
 
 	int ret = PAPI_OK;
 
+	resize_native_table();
 	/* See if lustre filesystem exists */
 	ret=detect_lustre();
 	if (ret!=PAPI_OK) {
@@ -413,6 +448,7 @@ _lustre_init_component(  )
 	ret=init_lustre_counters();
 
 	_lustre_vector.cmp_info.num_native_events=num_events;
+	_lustre_vector.cmp_info.CmpIdx = cidx;
 
 	return ret;
 }
@@ -441,6 +477,7 @@ _lustre_shutdown_component( void )
 {
 
 	host_finalize(  );
+	papi_free( lustre_native_table );
 
 	return PAPI_OK;
 }

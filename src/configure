@@ -2410,8 +2410,6 @@ elif `$CC -qversion 2>&1 | grep 'IBM XL C' >/dev/null 2>&1`; then
 else
 	CC_COMMON_NAME="unknown"
 fi
-echo "$as_me:$LINENO: result: I think the compiler, $CC, is $CC_COMMON_NAME." >&5
-echo "${ECHO_T}I think the compiler, $CC, is $CC_COMMON_NAME." >&6
 
 #prevent icc warnings about overriding optimization settings set by AC_PROG_CC
 # remark #869: parameter was never referenced
@@ -5855,6 +5853,7 @@ fi
 fi;
 
 
+force_pfm_incdir=no
 
 
 # Check whether --with-pfm_root or --without-pfm_root was given.
@@ -5872,7 +5871,8 @@ fi;
 # Check whether --with-pfm_incdir or --without-pfm_incdir was given.
 if test "${with_pfm_incdir+set}" = set; then
   withval="$with_pfm_incdir"
-  pfm_incdir=$withval
+  force_pfm_incdir=yes
+            pfm_incdir=$withval
 fi;
 
 # Check whether --with-pfm_libdir or --without-pfm_libdir was given.
@@ -5892,7 +5892,6 @@ fi
 
 force_perf_events=no
 disable_uncore=yes
-pe_incdir="$pfm_incdir/perfmon"
 
 
 # Check whether --with-perf_events or --without-perf_events was given.
@@ -5914,6 +5913,13 @@ if test "x$enable_perf_event_uncore" != "xno"; then
 
 fi
 
+
+if test "$force_pfm_incdir" != "yes"; then
+  if test "$force_perf_events" = "yes"; then
+	pfm_incdir="libpfm4/include"
+  fi
+fi
+pe_incdir="$pfm_incdir/perfmon"
 
 
 # Check whether --with-pe_incdir or --without-pe_incdir was given.
@@ -7174,15 +7180,15 @@ if (test "$MAKEVER" = "aix-power5" || test "$MAKEVER" = "aix-power6" || test "$M
     CPUCOMPONENT_OBJ=aix.o
     VECTOR=_aix_vector
     PAPI_EVENTS_CSV="papi_events.csv"
-    MISCHDRS="aix.h ppc64_events.h papi_events_table.h"
+    MISCHDRS="aix.h components/perfctr_ppc/ppc64_events.h papi_events_table.h"
     MISCSRCS="aix.c"
     CTEST_TARGETS="serial forkexec_tests overflow_tests profile_tests multiplex_and_pthreads smp omp "
 	SAVED_CFLAGS="$CFLAGS"
-    CFLAGS='$(DEBUGFLAGS) $(FLAGS) -qenum=4 -DNO_VARARG_MACRO -D_AIX -D_$(CPU_MODEL) -DNEED_FFSLL -DARCH_EVTS=\"$(ARCH_EVENTS).h\" -DCOMP_VECTOR=_ppc64_vectors -DSTATIC_PAPI_EVENTS_TABLE'
+    CFLAGS='$(DEBUGFLAGS) $(FLAGS) -qenum=4 -Icomponents/perfctr_ppc -DNO_VARARG_MACRO -D_AIX -D_$(CPU_MODEL) -DNEED_FFSLL -DARCH_EVTS=\"$(ARCH_EVENTS).h\" -DCOMP_VECTOR=_ppc64_vectors -DSTATIC_PAPI_EVENTS_TABLE'
 	CFLAGS="$SAVED_CFLAGS $CFLAGS"
     FFLAGS='$(FLAGS) -WF,-D_$(CPU_MODEL) -WF,-DARCH_EVTS=\"$(ARCH_EVENTS).h\"'
 
-  FLAGS='-I$(PMAPI)/include -qmaxmem=-1 -qarch=$(cpu_option) -qtune=$(cpu_option) -qlanglvl=extended $(BITFLAGS)'
+  FLAGS='-I$(PMAPI)/include -Icomponents/perfctr_ppc -qmaxmem=-1 -qarch=$(cpu_option) -qtune=$(cpu_option) -qlanglvl=extended $(BITFLAGS)'
   if test $debug != "yes"; then
 	OPTFLAGS='-O3 -qstrict $(PMINIT)'
   else
